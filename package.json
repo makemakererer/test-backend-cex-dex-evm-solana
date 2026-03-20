@@ -1,0 +1,42 @@
+{
+  "name": "peanut-test-task",
+  "version": "1.0.0",
+  "description": "Crypto price aggregator across CEX/DEX exchanges",
+  "main": "dist/app.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "test:unit:cache": "ts-node-dev --transpile-only tests/unit/test-cache.ts",
+    "test:int:cex-rates": "ts-node-dev --transpile-only tests/integration/test-cex-rates.ts",
+    "test:int:cex-cache": "ts-node-dev --transpile-only tests/integration/test-cex-cache.ts",
+    "test:unit:price-service": "ts-node-dev --transpile-only tests/unit/test-price-service.ts",
+    "test:int:price-service": "ts-node-dev --transpile-only tests/integration/test-price-service.ts",
+    "test:unit:routes": "ts-node-dev --transpile-only tests/unit/test-routes.ts",
+    "test:int:routes": "ts-node-dev --transpile-only tests/integration/test-routes.ts",
+    "test:int:dex-rates": "ts-node-dev --transpile-only tests/integration/test-dex-rates.ts",
+    "test:int:raydium-rates": "ts-node-dev --transpile-only tests/integration/test-raydium-rates.ts",
+    "test:int:slippage": "ts-node-dev --transpile-only tests/integration/test-slippage.ts",
+    "test:int:uniswap-ws": "ts-node-dev --transpile-only tests/integration/test-uniswap-ws.ts",
+    "test:int:cex-ws": "ts-node-dev --transpile-only tests/integration/test-cex-ws.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "@triton-one/yellowstone-grpc": "^4.0.2",
+    "@uniswap/sdk-core": "^7.12.2",
+    "@uniswap/v3-sdk": "^3.28.0",
+    "ccxt": "^4.5.44",
+    "dotenv": "^17.3.1",
+    "fastify": "^5.8.2",
+    "viem": "^2.47.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}
