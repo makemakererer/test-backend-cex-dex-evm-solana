@@ -255,14 +255,20 @@ export class RaydiumAdapter implements ExchangeAdapter {
 		const direct = this.getPoolSwapRate(base, quote, amount);
 		if (direct !== null) return direct;
 
-		// Cross-rate via intermediary
+		// Cross-rate via intermediary (2-hop swap: base → mid → quote)
 		for (const mid of DEX_CROSS_RATE_INTERMEDIARIES) {
 			if (mid === base || mid === quote) continue;
-			const baseMid = this.getPoolSwapRate(base, mid, amount);
-			const quoteMid = this.getPoolSwapRate(quote, mid, 1);
-			if (baseMid !== null && quoteMid !== null && quoteMid !== 0) {
-				return baseMid / quoteMid;
-			}
+
+			// Step 1: swap amount of base → mid
+			const baseMidRate = this.getPoolSwapRate(base, mid, amount);
+			if (baseMidRate === null) continue;
+
+			// Step 2: swap the actual mid output → quote
+			const midOutput = amount * baseMidRate;
+			const midQuoteRate = this.getPoolSwapRate(mid, quote, midOutput);
+			if (midQuoteRate === null) continue;
+
+			return baseMidRate * midQuoteRate;
 		}
 
 		return null;

@@ -65,7 +65,7 @@ export const RAYDIUM_CLMM_POOLS: Record<string, { address: string; mintA: string
   'SOL/USDC': { address: '3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv', mintA: 'SOL', mintB: 'USDC', decimalsA: 9, decimalsB: 6, fee: 0.0004 },
   'SOL/BTC':  { address: 'HCfytQ49w6Dn9UhHCqjNYTZYQ6z5SwqmsyYYqW4EKDdA', mintA: 'SOL', mintB: 'BTC', decimalsA: 9, decimalsB: 8, fee: 0.0005 },
   'SOL/ETH':  { address: 'z5UnzBcUnzQPoeHe5eVPoYczaTQ2BhwwDD9PN7Fq16v', mintA: 'SOL', mintB: 'ETH', decimalsA: 9, decimalsB: 8, fee: 0.0025 },
-  'ETH/USDT': { address: '2BE8nvNrFaNbzSbiQqhyTwF4d8QCpjyp4W2tYNMZwQ2A', mintA: 'ETH', mintB: 'USDT', decimalsA: 8, decimalsB: 6, fee: 0.002 },
+  'ETH/USDT': { address: '2BE8nvNrFaNbzSbiQqhyTwF4d8QCpjyp4W2tYNMZwQ2A', mintA: 'ETH', mintB: 'USDT', decimalsA: 8, decimalsB: 6, fee: 0.002 }, //Very low liquidity pool
 };
 
 // Solana token mint addresses & decimals
