@@ -23,6 +23,23 @@ export abstract class BaseCexAdapter implements ExchangeAdapter {
     }
 
     console.log(`[${this.getName()} ws] subscribed to ${symbols.join(', ')}`);
+
+    // Load initial prices via REST (don't wait for first WS tick)
+    for (const symbol of symbols) {
+      try {
+        const ticker = await this.exchange.fetchTicker(symbol);
+        if (ticker.last != null) {
+          const [base, quote] = symbol.split('/');
+          onPriceUpdate(this.getName(), base, quote, ticker.last);
+          if (ticker.last !== 0) {
+            onPriceUpdate(this.getName(), quote, base, 1 / ticker.last);
+          }
+          console.log(`[${this.getName()} rest] ${symbol}=${ticker.last}`);
+        }
+      } catch (err: any) {
+        console.error(`[${this.getName()} rest] ${symbol} failed: ${err.message}`);
+      }
+    }
   }
 
   async destroy(): Promise<void> {
@@ -42,6 +59,9 @@ export abstract class BaseCexAdapter implements ExchangeAdapter {
           if (ticker.last != null) {
             const [base, quote] = symbol.split('/');
             onPriceUpdate(this.getName(), base, quote, ticker.last);
+            if (ticker.last !== 0) {
+              onPriceUpdate(this.getName(), quote, base, 1 / ticker.last);
+            }
             console.log(`[${this.getName()} ws] ${symbol}=${ticker.last}`);
           }
         } catch {

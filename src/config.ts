@@ -3,8 +3,7 @@ import 'dotenv/config';
 // Enabled exchanges — add/remove adapters here
 export const ENABLED_EXCHANGES: string[] = ['binance', 'kucoin', 'uniswap', 'raydium'];
 
-// export const SUPPORTED_CURRENCIES = ['BTC', 'ETH', 'SOL', 'USDT'] as const;
-export const SUPPORTED_CURRENCIES = ['BTC', 'USDT'] as const;
+export const SUPPORTED_CURRENCIES = ['BTC', 'ETH', 'SOL', 'USDT'] as const;
 export type SupportedCurrency = typeof SUPPORTED_CURRENCIES[number];
 
 export const PORT = Number(process.env.PORT) || 3000;
@@ -15,7 +14,8 @@ export const ETH_WS_URL = process.env.ETH_WS_URL || 'wss://ethereum-rpc.publicno
 export const CEX_CROSS_RATE_QUOTE = 'USDT';
 
 // Intermediary tokens for DEX cross-rate calculation (tried in order)
-export const DEX_CROSS_RATE_INTERMEDIARIES = ['USDT', 'WETH'];
+export const DEX_CROSS_RATE_INTERMEDIARIES = ['USDT', 'WETH', 'SOL'];
+
 
 // Ethereum mainnet token addresses & decimals
 export const ETH_TOKENS: Record<string, { address: `0x${string}`; decimals: number }> = {
@@ -46,6 +46,9 @@ export const UNISWAP_POOLS: Record<string, { address: `0x${string}`; token0: str
   'WBTC/USDT': { address: '0x9Db9e0e53058C89e5B94e29621a205198648425B', token0: 'WBTC', token1: 'USDT', fee: 3000 },
   'WETH/WSOL': { address: '0x127452F3f9cDc0389b0Bf59ce6131aA3Bd763598', token0: 'WETH', token1: 'WSOL', fee: 3000 },
 };
+
+// Solana RPC
+export const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
 // Solana / Yellowstone gRPC
 export const GEYSER_URL = process.env.GEYSER_URL || 'https://grpc.solana.streamingfast.io:443';

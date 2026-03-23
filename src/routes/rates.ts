@@ -19,8 +19,8 @@ export function ratesRoutes(fastify: FastifyInstance, priceService: PriceService
       return reply.status(400).send({ error: parsed.error.issues });
     }
 
-    const { baseCurrency, quoteCurrency, amount } = parsed.data;
-    const rates = await priceService.getRates(baseCurrency, quoteCurrency, amount);
+    const { baseCurrency, quoteCurrency } = parsed.data;
+    const rates = priceService.getCachedRates(baseCurrency, quoteCurrency);
     return { rates };
   });
 

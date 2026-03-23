@@ -1,15 +1,17 @@
 import Client, { CommitmentLevel, SubscribeRequest, SubscribeUpdate } from '@triton-one/yellowstone-grpc';
 import { ClientDuplexStream } from '@grpc/grpc-js';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { ExchangeAdapter, OnPriceUpdate } from '../base/ExchangeAdapter';
 import {
 	GEYSER_URL,
 	GEYSER_TOKEN,
+	SOLANA_RPC_URL,
 	SOL_TOKENS,
 	RAYDIUM_CLMM_POOLS,
 	RAYDIUM_CLMM_SQRT_PRICE_OFFSET,
 	RAYDIUM_CLMM_LIQUIDITY_OFFSET,
 	SUPPORTED_CURRENCIES,
+	DEX_CROSS_RATE_INTERMEDIARIES,
 } from '../../config';
 
 const RECONNECT_TIMEOUT = 10000;
@@ -77,6 +79,7 @@ export class RaydiumAdapter implements ExchangeAdapter {
 		});
 
 		await this.createGeyserStream();
+		await this.loadInitialPoolStates(onPriceUpdate);
 	}
 
 	async destroy(): Promise<void> {
@@ -90,6 +93,42 @@ export class RaydiumAdapter implements ExchangeAdapter {
 		this.poolByAddress.clear();
 		this.poolStates.clear();
 		this.poolByPair.clear();
+	}
+
+	private async loadInitialPoolStates(onPriceUpdate: OnPriceUpdate): Promise<void> {
+		const connection = new Connection(SOLANA_RPC_URL);
+		const entries = Array.from(this.poolByAddress.entries());
+		const pubkeys = entries.map(([addr]) => new PublicKey(addr));
+
+		try {
+			const accounts = await connection.getMultipleAccountsInfo(pubkeys);
+
+			for (let i = 0; i < entries.length; i++) {
+				const [address, config] = entries[i];
+				const account = accounts[i];
+				if (!account?.data || account.data.length < RAYDIUM_CLMM_SQRT_PRICE_OFFSET + 16) continue;
+
+				const data = Buffer.from(account.data);
+				const sqrtPriceX64 = this.readU128LE(data, RAYDIUM_CLMM_SQRT_PRICE_OFFSET);
+				const liquidity = this.readU128LE(data, RAYDIUM_CLMM_LIQUIDITY_OFFSET);
+
+				if (sqrtPriceX64 === 0n) continue;
+
+				// Only set if Geyser hasn't already pushed a newer state
+				if (!this.poolStates.has(address)) {
+					this.poolStates.set(address, { sqrtPriceX64, liquidity });
+				}
+
+				const midPrice = this.sqrtPriceX64ToPrice(sqrtPriceX64, config.decimalsA, config.decimalsB);
+				if (midPrice > 0 && isFinite(midPrice)) {
+					onPriceUpdate(this.getName(), config.mintA, config.mintB, midPrice);
+					onPriceUpdate(this.getName(), config.mintB, config.mintA, 1 / midPrice);
+					console.log(`[raydium rpc] ${config.pairKey} price=${midPrice.toFixed(6)}`);
+				}
+			}
+		} catch (err: any) {
+			console.error(`[raydium rpc] failed to load initial states: ${err.message}`);
+		}
 	}
 
 	private async createGeyserStream(): Promise<void> {
@@ -216,8 +255,8 @@ export class RaydiumAdapter implements ExchangeAdapter {
 		const direct = this.getPoolSwapRate(base, quote, amount);
 		if (direct !== null) return direct;
 
-		// Cross-rate via USDT/USDC intermediary
-		for (const mid of ['USDT', 'USDC']) {
+		// Cross-rate via intermediary
+		for (const mid of DEX_CROSS_RATE_INTERMEDIARIES) {
 			if (mid === base || mid === quote) continue;
 			const baseMid = this.getPoolSwapRate(base, mid, amount);
 			const quoteMid = this.getPoolSwapRate(quote, mid, 1);

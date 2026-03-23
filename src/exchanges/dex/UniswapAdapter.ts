@@ -3,6 +3,7 @@ import { mainnet } from 'viem/chains';
 import { ExchangeAdapter, OnPriceUpdate } from '../base/ExchangeAdapter';
 import { UNISWAP_V3_QUOTER_ABI } from '../../abi/uniswapV3Quoter';
 import { UNISWAP_V3_SWAP_EVENT_ABI } from '../../abi/uniswapV3Events';
+import { UNISWAP_V3_POOL_ABI } from '../../abi/uniswapV3Pool';
 import {
   ETH_RPC_URL,
   ETH_WS_URL,
@@ -79,6 +80,36 @@ export class UniswapAdapter implements ExchangeAdapter {
       this.unwatchers.push(unwatch);
     }
     console.log(`[uniswap ws] subscribed to ${Object.keys(UNISWAP_POOLS).length} pools`);
+
+    // Read initial prices from slot0
+    for (const [pairKey, poolConfig] of Object.entries(UNISWAP_POOLS)) {
+      if (!supportedTokens.has(poolConfig.token0) || !supportedTokens.has(poolConfig.token1)) continue;
+
+      const token0Info = ETH_TOKENS[poolConfig.token0];
+      const token1Info = ETH_TOKENS[poolConfig.token1];
+      if (!token0Info || !token1Info) continue;
+
+      try {
+        const slot0 = await this.httpClient.readContract({
+          address: poolConfig.address,
+          abi: UNISWAP_V3_POOL_ABI,
+          functionName: 'slot0',
+        });
+
+        const sqrtPriceX96 = slot0[0];
+        const token0Price = this.sqrtPriceX96ToPrice(sqrtPriceX96, token0Info.decimals, token1Info.decimals);
+
+        const baseCurrency = tokenToCurrency[poolConfig.token0];
+        const quoteCurrency = tokenToCurrency[poolConfig.token1];
+        if (baseCurrency && quoteCurrency && token0Price > 0) {
+          onPriceUpdate(this.getName(), baseCurrency, quoteCurrency, token0Price);
+          onPriceUpdate(this.getName(), quoteCurrency, baseCurrency, 1 / token0Price);
+          console.log(`[uniswap slot0] ${pairKey}: ${baseCurrency}/${quoteCurrency}=${token0Price.toFixed(6)}`);
+        }
+      } catch (err: any) {
+        console.error(`[uniswap slot0] ${pairKey} failed: ${err.message}`);
+      }
+    }
   }
 
   async destroy(): Promise<void> {
@@ -132,7 +163,8 @@ export class UniswapAdapter implements ExchangeAdapter {
 
       const outputAmount = Number(amountOut) / (10 ** tokenBInfo.decimals);
       return outputAmount / amount;
-    } catch {
+    } catch (err: any) {
+      console.error(`[uniswap quoter] ${tokenA}/${tokenB} amount=${amount} failed: ${err.shortMessage || err.message}`);
       return null;
     }
   }
