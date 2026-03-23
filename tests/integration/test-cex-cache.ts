@@ -6,13 +6,13 @@ function assert(condition: boolean, msg: string) {
 }
 
 async function main() {
-  const cache = new PriceCache(5000);
-  const checkPair = TEST_PAIRS[2]; // BTC/USDT
+  const cache = new PriceCache();
+  const checkPair = TEST_PAIRS[0]; // BTC/USDT
 
   console.log('\n--- Fetch rates and populate cache ---');
   for (const { base, quote } of TEST_PAIRS) {
     for (const adapter of CEX_ADAPTERS) {
-      const rate = await adapter.getRate(base, quote);
+      const rate = await adapter.getRate(base, quote, 1);
       if (rate !== null) {
         cache.set(adapter.getName(), base, quote, rate);
         console.log(`  ${adapter.getName()} ${base}/${quote}: ${rate}`);
@@ -29,7 +29,7 @@ async function main() {
   }
 
   console.log('\n--- Verify cache returns same value as fetched ---');
-  const rate = await CEX_ADAPTERS[0].getRate(checkPair.base, checkPair.quote);
+  const rate = await CEX_ADAPTERS[0].getRate(checkPair.base, checkPair.quote, 1);
   const cached = cache.get(CEX_ADAPTERS[0].getName(), checkPair.base, checkPair.quote);
   assert(
     cached !== null && rate !== null && Math.abs(cached - rate) / rate < 0.01,

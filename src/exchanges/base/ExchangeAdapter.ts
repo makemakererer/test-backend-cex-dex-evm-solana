@@ -7,7 +7,7 @@ export type OnPriceUpdate = (exchange: string, base: string, quote: string, rate
 
 export interface ExchangeAdapter {
   getName(): string;
-  getRate(baseCurrency: string, quoteCurrency: string, amount?: number): Promise<number | null>;
+  getRate(baseCurrency: string, quoteCurrency: string, amount: number): Promise<number | null>;
   init?(onPriceUpdate: OnPriceUpdate): Promise<void>;
   destroy?(): Promise<void>;
 }

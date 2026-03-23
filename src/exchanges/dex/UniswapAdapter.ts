@@ -119,7 +119,7 @@ export class UniswapAdapter implements ExchangeAdapter {
     this.unwatchers = [];
   }
 
-  async getRate(baseCurrency: string, quoteCurrency: string, amount: number = 1): Promise<number | null> {
+  async getRate(baseCurrency: string, quoteCurrency: string, amount: number): Promise<number | null> {
     const baseToken = CURRENCY_TO_ETH_TOKEN[baseCurrency.toUpperCase()];
     const quoteToken = CURRENCY_TO_ETH_TOKEN[quoteCurrency.toUpperCase()];
     if (!baseToken || !quoteToken) return null;

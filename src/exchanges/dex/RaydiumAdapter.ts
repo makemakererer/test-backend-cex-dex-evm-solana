@@ -245,7 +245,7 @@ export class RaydiumAdapter implements ExchangeAdapter {
 		}
 	}
 
-	async getRate(baseCurrency: string, quoteCurrency: string, amount: number = 1): Promise<number | null> {
+	async getRate(baseCurrency: string, quoteCurrency: string, amount: number): Promise<number | null> {
 		const base = baseCurrency.toUpperCase();
 		const quote = quoteCurrency.toUpperCase();
 

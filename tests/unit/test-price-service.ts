@@ -11,7 +11,7 @@ function assert(condition: boolean, msg: string) {
 function mockAdapter(name: string, rate: number | null): ExchangeAdapter {
   return {
     getName: () => name,
-    getRate: async () => rate,
+    getRate: async (_b, _q, _amount) => rate,
   };
 }
 
@@ -49,7 +49,7 @@ async function main() {
     registry.register(mockAdapter('exchange-a', 10));
     registry.register({
       getName: () => 'exchange-fail',
-      getRate: async () => { throw new Error('connection error'); },
+      getRate: async (_b, _q, _amount) => { throw new Error('connection error'); },
     });
     const service = new PriceService(registry, new PriceCache());
 

@@ -7,7 +7,7 @@ async function main() {
     const results = await Promise.all(
       CEX_ADAPTERS.map(async (adapter) => ({
         name: adapter.getName(),
-        rate: await adapter.getRate(base, quote),
+        rate: await adapter.getRate(base, quote, 1),
       }))
     );
 

@@ -73,7 +73,7 @@ export abstract class BaseCexAdapter implements ExchangeAdapter {
     loop();
   }
 
-  async getRate(baseCurrency: string, quoteCurrency: string, amount: number = 1): Promise<number | null> {
+  async getRate(baseCurrency: string, quoteCurrency: string, amount: number): Promise<number | null> {
     const base = baseCurrency.toUpperCase();
     const quote = quoteCurrency.toUpperCase();
     const symbol = `${base}/${quote}`;
@@ -81,16 +81,19 @@ export abstract class BaseCexAdapter implements ExchangeAdapter {
     const directRate = await this.fetchEffectiveRate(symbol, amount);
     if (directRate !== null) return directRate;
 
-    const [baseRate, quoteRate] = await Promise.all([
-      this.fetchEffectiveRate(`${base}/${CEX_CROSS_RATE_QUOTE}`, amount),
-      this.fetchEffectiveRate(`${quote}/${CEX_CROSS_RATE_QUOTE}`, 1),
-    ]);
+    // Step 1: sell base → USDT
+    const baseRate = await this.fetchEffectiveRate(`${base}/${CEX_CROSS_RATE_QUOTE}`, amount);
+    if (baseRate === null) return null;
 
-    if (baseRate !== null && quoteRate !== null && quoteRate !== 0) {
-      return baseRate / quoteRate;
-    }
+    // Step 2: get approximate quote price, then sell proportional $ amount of quote
+    const refQuoteRate = await this.fetchEffectiveRate(`${quote}/${CEX_CROSS_RATE_QUOTE}`, 1); //1 is price per 1 quote token //TODO: Here is better do oracle price
+    if (refQuoteRate === null || refQuoteRate === 0) return null;
 
-    return null;
+    const quoteAmount = (amount * baseRate) / refQuoteRate;
+    const quoteRate = await this.fetchEffectiveRate(`${quote}/${CEX_CROSS_RATE_QUOTE}`, quoteAmount);
+    if (quoteRate === null || quoteRate === 0) return null;
+
+    return baseRate / quoteRate;
   }
 
   private async fetchEffectiveRate(symbol: string, amount: number): Promise<number | null> {

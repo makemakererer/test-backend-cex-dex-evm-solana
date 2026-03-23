@@ -16,6 +16,8 @@ export const CEX_CROSS_RATE_QUOTE = 'USDT';
 // Intermediary tokens for DEX cross-rate calculation (tried in order)
 export const DEX_CROSS_RATE_INTERMEDIARIES = ['USDT', 'WETH', 'SOL'];
 
+export const DEFAULT_USD_AMOUNT_FOR_RATES = 100; //100$
+
 
 // Ethereum mainnet token addresses & decimals
 export const ETH_TOKENS: Record<string, { address: `0x${string}`; decimals: number }> = {

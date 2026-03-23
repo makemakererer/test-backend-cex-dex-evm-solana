@@ -1,15 +1,14 @@
 import { PriceCache } from '../../src/cache/PriceCache';
-import { TEST_PAIRS, CEX_ADAPTERS } from '../config';
 
 function assert(condition: boolean, msg: string) {
   console.log(condition ? `  PASS: ${msg}` : `  FAIL: ${msg}`);
 }
 
 async function main() {
-  const { base, quote } = TEST_PAIRS[2];
-  const { base: base2, quote: quote2 } = TEST_PAIRS[3];
-  const exchange1 = CEX_ADAPTERS[0].getName();
-  const exchange2 = CEX_ADAPTERS[1].getName();
+  const base = 'BTC', quote = 'USDT';
+  const base2 = 'ETH', quote2 = 'USDT';
+  const exchange1 = 'binance';
+  const exchange2 = 'kucoin';
 
   console.log('\n--- Cache: basic get/set ---');
   const cache = new PriceCache();

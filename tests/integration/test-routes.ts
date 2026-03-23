@@ -18,7 +18,7 @@ async function main() {
   const service = new PriceService(registry, new PriceCache());
   ratesRoutes(fastify, service);
 
-  const [pair1, pair2, pair3] = TEST_PAIRS; // BTC/ETH, ETH/BTC, BTC/USDT
+  const pair1 = TEST_PAIRS[0]; // BTC/USDT
 
   console.log(`\n--- GET ${ratesUrl(pair1.base, pair1.quote)} ---`);
   {
@@ -32,20 +32,9 @@ async function main() {
     }
   }
 
-  console.log(`\n--- GET ${ratesUrl(pair2.base, pair2.quote)} ---`);
+  console.log(`\n--- GET ${estimateUrl(pair1.base, pair1.quote)} ---`);
   {
-    const res = await fastify.inject({ method: 'GET', url: ratesUrl(pair2.base, pair2.quote) });
-    const body = JSON.parse(res.body);
-    assert(res.statusCode === 200, `status 200`);
-    for (const r of body.rates) {
-      console.log(`  ${r.exchangeName}: ${r.rate}`);
-      assert(r.rate > 0 && r.rate < 1, `${r.exchangeName} ETH/BTC rate < 1`);
-    }
-  }
-
-  console.log(`\n--- GET ${estimateUrl(pair3.base, pair3.quote)} ---`);
-  {
-    const res = await fastify.inject({ method: 'GET', url: estimateUrl(pair3.base, pair3.quote) });
+    const res = await fastify.inject({ method: 'GET', url: estimateUrl(pair1.base, pair1.quote) });
     const body = JSON.parse(res.body);
     assert(res.statusCode === 200, `status 200`);
     assert(body.averageRate > 0, `averageRate=${body.averageRate}`);

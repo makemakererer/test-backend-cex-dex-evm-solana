@@ -1,7 +1,7 @@
 import { ExchangeRate } from '../exchanges/base/ExchangeAdapter';
 import { ExchangeRegistry } from '../exchanges/ExchangeRegistry';
 import { PriceCache } from '../cache/PriceCache';
-import { SUPPORTED_CURRENCIES } from '../config';
+import { SUPPORTED_CURRENCIES, DEFAULT_USD_AMOUNT_FOR_RATES } from '../config';
 
 export class PriceService {
   constructor(
@@ -42,9 +42,23 @@ export class PriceService {
   }
 
   /** /estimate — real swap simulation via adapters */
-  async getRates(baseCurrency: string, quoteCurrency: string, amount: number = 1): Promise<ExchangeRate[]> {
+  async getRates(baseCurrency: string, quoteCurrency: string, amount?: number): Promise<ExchangeRate[]> {
     const base = baseCurrency.toUpperCase();
     const quote = quoteCurrency.toUpperCase();
+
+    // Default: convert DEFAULT_USD_AMOUNT_FOR_RATES to token amount via cache
+    if (amount == null) {
+      if (base === 'USDT') {
+        amount = DEFAULT_USD_AMOUNT_FOR_RATES;
+      } else {
+        const cached = this.getCachedRates(base, 'USDT');
+        const avgRate = cached.length > 0
+          ? cached.reduce((s, r) => s + r.rate, 0) / cached.length
+          : null;
+        amount = avgRate ? DEFAULT_USD_AMOUNT_FOR_RATES / avgRate : 1;
+      }
+    }
+
     const adapters = this.registry.getAll();
 
     const results = await Promise.allSettled(

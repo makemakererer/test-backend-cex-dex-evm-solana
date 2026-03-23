@@ -10,7 +10,7 @@ async function main() {
 
   for (const { base, quote } of TEST_PAIRS) {
     console.log(`\n--- ${base}/${quote} ---`);
-    const rate = await raydium.getRate(base, quote);
+    const rate = await raydium.getRate(base, quote, 1);
     console.log(`  raydium: ${rate}`);
     assert(rate !== null && rate > 0, `rate > 0`);
   }

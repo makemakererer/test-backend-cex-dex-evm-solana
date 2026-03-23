@@ -1,12 +1,21 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { PriceService } from '../services/PriceService';
-import { SUPPORTED_CURRENCIES } from '../config';
+import { DEFAULT_USD_AMOUNT_FOR_RATES, SUPPORTED_CURRENCIES } from '../config';
 
-const querySchema = z.object({
+const ratesQuerySchema = z.object({
   baseCurrency: z.enum(SUPPORTED_CURRENCIES),
   quoteCurrency: z.enum(SUPPORTED_CURRENCIES),
-  amount: z.coerce.number().positive().optional().default(1),
+}).refine(
+  (data) => data.baseCurrency !== data.quoteCurrency,
+  { message: 'baseCurrency and quoteCurrency must be different' },
+);
+
+const estimateQuerySchema = z.object({
+  baseCurrency: z.enum(SUPPORTED_CURRENCIES),
+  quoteCurrency: z.enum(SUPPORTED_CURRENCIES),
+  amount: z.coerce.number().positive().optional(),
+  amountUsd: z.coerce.number().positive().optional(),
 }).refine(
   (data) => data.baseCurrency !== data.quoteCurrency,
   { message: 'baseCurrency and quoteCurrency must be different' },
@@ -14,7 +23,7 @@ const querySchema = z.object({
 
 export function ratesRoutes(fastify: FastifyInstance, priceService: PriceService) {
   fastify.get('/getRates', async (request, reply) => {
-    const parsed = querySchema.safeParse(request.query);
+    const parsed = ratesQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.issues });
     }
@@ -25,12 +34,34 @@ export function ratesRoutes(fastify: FastifyInstance, priceService: PriceService
   });
 
   fastify.get('/estimate', async (request, reply) => {
-    const parsed = querySchema.safeParse(request.query);
+    const parsed = estimateQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.issues });
     }
 
-    const { baseCurrency, quoteCurrency, amount } = parsed.data;
+    const { baseCurrency, quoteCurrency } = parsed.data;
+    let amount = parsed.data.amount;
+
+    // Convert amountUsd → token amount using cached price
+    if (amount == null) {
+      const amountUsd = parsed.data.amountUsd ?? DEFAULT_USD_AMOUNT_FOR_RATES;
+
+      if (baseCurrency === 'USDT') {
+        amount = amountUsd;
+      } else {
+        const cachedRates = priceService.getCachedRates(baseCurrency, 'USDT');
+        const usdRate = cachedRates.length > 0
+          ? cachedRates.reduce((sum, r) => sum + r.rate, 0) / cachedRates.length
+          : null;
+
+        if (usdRate !== null && usdRate > 0) {
+          amount = amountUsd / usdRate;
+        } else {
+          return reply.status(503).send({ error: 'Price data not yet available for USD conversion' });
+        }
+      }
+    }
+
     const rates = await priceService.getRates(baseCurrency, quoteCurrency, amount);
 
     if (rates.length === 0) {

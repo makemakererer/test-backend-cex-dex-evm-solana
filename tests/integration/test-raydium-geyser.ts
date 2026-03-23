@@ -10,12 +10,12 @@ async function main() {
 
   console.log('\nWaiting 30s for CLMM pool updates...\n');
 
-  const rateBefore = await raydium.getRate('SOL', 'USDT');
+  const rateBefore = await raydium.getRate('SOL', 'USDT', 1);
   console.log(`SOL/USDT rate (REST fallback): ${rateBefore}`);
 
   await new Promise(r => setTimeout(r, 30000));
 
-  const rateAfter = await raydium.getRate('SOL', 'USDT');
+  const rateAfter = await raydium.getRate('SOL', 'USDT', 1);
   console.log(`\nSOL/USDT rate (after Geyser): ${rateAfter}`);
 
   await raydium.destroy();

@@ -4,7 +4,9 @@ import { PriceService } from '../../src/services/PriceService';
 import { ExchangeRegistry } from '../../src/exchanges/ExchangeRegistry';
 import { PriceCache } from '../../src/cache/PriceCache';
 import { ExchangeAdapter } from '../../src/exchanges/base/ExchangeAdapter';
-import { TEST_PAIRS, ratesUrl, estimateUrl } from '../config';
+import { ratesUrl, estimateUrl } from '../config';
+
+const base = 'BTC', quote = 'ETH';
 
 function assert(condition: boolean, msg: string) {
   console.log(condition ? `  PASS: ${msg}` : `  FAIL: ${msg}`);
@@ -13,7 +15,7 @@ function assert(condition: boolean, msg: string) {
 function mockAdapter(name: string, rate: number): ExchangeAdapter {
   return {
     getName: () => name,
-    getRate: async () => rate,
+    getRate: async (_b, _q, _amount) => rate,
   };
 }
 
@@ -22,10 +24,12 @@ function buildTestApp() {
   const registry = new ExchangeRegistry();
   registry.register(mockAdapter('binance', 10));
   registry.register(mockAdapter('kucoin', 8));
-  // Pre-populate cache (simulates WS updates for /getRates)
+  // Pre-populate cache (simulates WS updates for /getRates and USD conversion)
   const cache = new PriceCache();
-  cache.set('binance', 'BTC', 'ETH', 10);
-  cache.set('kucoin', 'BTC', 'ETH', 8);
+  cache.set('binance', base, quote, 10);
+  cache.set('kucoin', base, quote, 8);
+  cache.set('binance', base, 'USDT', 68000);
+  cache.set('kucoin', base, 'USDT', 68000);
   const service = new PriceService(registry, cache);
   ratesRoutes(fastify, service);
   return fastify;
@@ -33,7 +37,6 @@ function buildTestApp() {
 
 async function main() {
   const app = buildTestApp();
-  const { base, quote } = TEST_PAIRS[0]; // BTC/ETH
 
   console.log('\n--- GET /getRates: valid pair ---');
   {
