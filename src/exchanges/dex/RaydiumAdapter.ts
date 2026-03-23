@@ -13,22 +13,10 @@ import {
 	SUPPORTED_CURRENCIES,
 	DEX_CROSS_RATE_INTERMEDIARIES,
 } from '../../config';
+import { CachedPoolState, PoolConfig } from './types/raydium';
+import { calculateRaydiumSwapOutput, readU128LE, sqrtPriceX64ToPrice } from './utils/raydiumMath';
 
 const RECONNECT_TIMEOUT = 10000;
-
-interface PoolConfig {
-	pairKey: string;
-	mintA: string;
-	mintB: string;
-	decimalsA: number;
-	decimalsB: number;
-	fee: number;
-}
-
-interface CachedPoolState {
-	sqrtPriceX64: bigint;
-	liquidity: bigint;
-}
 
 export class RaydiumAdapter implements ExchangeAdapter {
 	private geyserClient: Client | null = null;
@@ -109,8 +97,8 @@ export class RaydiumAdapter implements ExchangeAdapter {
 				if (!account?.data || account.data.length < RAYDIUM_CLMM_SQRT_PRICE_OFFSET + 16) continue;
 
 				const data = Buffer.from(account.data);
-				const sqrtPriceX64 = this.readU128LE(data, RAYDIUM_CLMM_SQRT_PRICE_OFFSET);
-				const liquidity = this.readU128LE(data, RAYDIUM_CLMM_LIQUIDITY_OFFSET);
+				const sqrtPriceX64 = readU128LE(data, RAYDIUM_CLMM_SQRT_PRICE_OFFSET);
+				const liquidity = readU128LE(data, RAYDIUM_CLMM_LIQUIDITY_OFFSET);
 
 				if (sqrtPriceX64 === 0n) continue;
 
@@ -119,7 +107,7 @@ export class RaydiumAdapter implements ExchangeAdapter {
 					this.poolStates.set(address, { sqrtPriceX64, liquidity });
 				}
 
-				const midPrice = this.sqrtPriceX64ToPrice(sqrtPriceX64, config.decimalsA, config.decimalsB);
+				const midPrice = sqrtPriceX64ToPrice(sqrtPriceX64, config.decimalsA, config.decimalsB);
 				if (midPrice > 0 && isFinite(midPrice)) {
 					onPriceUpdate(this.getName(), config.mintA, config.mintB, midPrice);
 					onPriceUpdate(this.getName(), config.mintB, config.mintA, 1 / midPrice);
@@ -190,15 +178,15 @@ export class RaydiumAdapter implements ExchangeAdapter {
 				const accountData = Buffer.from(acc.data);
 				if (accountData.length < RAYDIUM_CLMM_SQRT_PRICE_OFFSET + 16) return;
 
-				const sqrtPriceX64 = this.readU128LE(accountData, RAYDIUM_CLMM_SQRT_PRICE_OFFSET);
-				const liquidity = this.readU128LE(accountData, RAYDIUM_CLMM_LIQUIDITY_OFFSET);
+				const sqrtPriceX64 = readU128LE(accountData, RAYDIUM_CLMM_SQRT_PRICE_OFFSET);
+				const liquidity = readU128LE(accountData, RAYDIUM_CLMM_LIQUIDITY_OFFSET);
 
 				if (sqrtPriceX64 === 0n) return;
 
 				this.poolStates.set(pubkey, { sqrtPriceX64, liquidity });
 
 				// Mid-price for PriceCache (amount=1 fast path)
-				const midPrice = this.sqrtPriceX64ToPrice(sqrtPriceX64, config.decimalsA, config.decimalsB);
+				const midPrice = sqrtPriceX64ToPrice(sqrtPriceX64, config.decimalsA, config.decimalsB);
 				if (midPrice > 0 && isFinite(midPrice) && this.onPriceUpdate) {
 					this.onPriceUpdate(this.getName(), config.mintA, config.mintB, midPrice);
 					this.onPriceUpdate(this.getName(), config.mintB, config.mintA, 1 / midPrice);
@@ -283,64 +271,6 @@ export class RaydiumAdapter implements ExchangeAdapter {
 		const state = this.poolStates.get(poolInfo.address);
 		if (!state || state.liquidity === 0n) return null;
 
-		return this.calculateSwapOutput(amount, state, poolInfo.config, poolInfo.sellA);
-	}
-
-	/**
-	 * CLMM swap output calculation (single tick range approximation).
-	 *
-	 * Selling tokenA (token0 → token1):
-	 *   amountOut = L * P * Δx / (L + Δx * √P)
-	 *
-	 * Selling tokenB (token1 → token0):
-	 *   √P_new = √P + Δy / L
-	 *   amountOut = Δy / (√P * √P_new)
-	 *
-	 * where √P = sqrtPriceX64 / 2^64, P = (√P)², L = liquidity
-	 */
-	private calculateSwapOutput(
-		amount: number,
-		state: CachedPoolState,
-		config: PoolConfig,
-		sellA: boolean,
-	): number {
-		const decimalsIn = sellA ? config.decimalsA : config.decimalsB;
-		const decimalsOut = sellA ? config.decimalsB : config.decimalsA;
-
-		const amountInSmallest = amount * 10 ** decimalsIn;
-		const amountAfterFee = amountInSmallest * (1 - config.fee);
-
-		const sqrtPrice = Number(state.sqrtPriceX64) / Number(2n ** 64n);
-		const L = Number(state.liquidity);
-
-		if (L === 0 || sqrtPrice === 0) return 0;
-
-		let amountOutSmallest: number;
-
-		if (sellA) {
-			// token0 → token1: output = L * P * Δx / (L + Δx * √P)
-			const P = sqrtPrice * sqrtPrice;
-			amountOutSmallest = (L * P * amountAfterFee) / (L + amountAfterFee * sqrtPrice);
-		} else {
-			// token1 → token0: output = Δy / (√P * √P_new)
-			const sqrtPriceNew = sqrtPrice + amountAfterFee / L;
-			amountOutSmallest = amountAfterFee / (sqrtPrice * sqrtPriceNew);
-		}
-
-		const amountOutHuman = amountOutSmallest / 10 ** decimalsOut;
-		return amountOutHuman / amount;
-	}
-
-	private readU128LE(data: Buffer, offset: number): bigint {
-		const low = data.readBigUInt64LE(offset);
-		const high = data.readBigUInt64LE(offset + 8);
-		return low + (high << 64n);
-	}
-
-	private sqrtPriceX64ToPrice(sqrtPriceX64: bigint, decimalsA: number, decimalsB: number): number {
-		const sqrtPrice = Number(sqrtPriceX64) / Number(2n ** 64n);
-		const price = sqrtPrice * sqrtPrice;
-		return price * 10 ** (decimalsA - decimalsB);
+		return calculateRaydiumSwapOutput(amount, state, poolInfo.config, poolInfo.sellA);
 	}
 }
-

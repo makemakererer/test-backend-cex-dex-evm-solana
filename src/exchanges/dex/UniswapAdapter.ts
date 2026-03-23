@@ -4,6 +4,7 @@ import { ExchangeAdapter, OnPriceUpdate } from '../base/ExchangeAdapter';
 import { UNISWAP_V3_QUOTER_ABI } from '../../abi/uniswapV3Quoter';
 import { UNISWAP_V3_SWAP_EVENT_ABI } from '../../abi/uniswapV3Events';
 import { UNISWAP_V3_POOL_ABI } from '../../abi/uniswapV3Pool';
+import { sqrtPriceX96ToPrice } from './utils/uniswapMath';
 import {
   ETH_RPC_URL,
   ETH_WS_URL,
@@ -57,7 +58,7 @@ export class UniswapAdapter implements ExchangeAdapter {
             const { sqrtPriceX96 } = log.args;
             if (sqrtPriceX96 == null) continue;
 
-            const token0Price = this.sqrtPriceX96ToPrice(
+            const token0Price = sqrtPriceX96ToPrice(
               sqrtPriceX96,
               token0Info.decimals,
               token1Info.decimals,
@@ -97,7 +98,7 @@ export class UniswapAdapter implements ExchangeAdapter {
         });
 
         const sqrtPriceX96 = slot0[0];
-        const token0Price = this.sqrtPriceX96ToPrice(sqrtPriceX96, token0Info.decimals, token1Info.decimals);
+        const token0Price = sqrtPriceX96ToPrice(sqrtPriceX96, token0Info.decimals, token1Info.decimals);
 
         const baseCurrency = tokenToCurrency[poolConfig.token0];
         const quoteCurrency = tokenToCurrency[poolConfig.token1];
@@ -176,12 +177,6 @@ export class UniswapAdapter implements ExchangeAdapter {
       console.error(`[uniswap quoter] ${tokenA}/${tokenB} amount=${amount} failed: ${err.shortMessage || err.message}`);
       return null;
     }
-  }
-
-  private sqrtPriceX96ToPrice(sqrtPriceX96: bigint, decimals0: number, decimals1: number): number {
-    const sqrtPrice = Number(sqrtPriceX96) / Number(2n ** 96n);
-    const price = sqrtPrice * sqrtPrice;
-    return price * (10 ** (decimals0 - decimals1));
   }
 }
 
