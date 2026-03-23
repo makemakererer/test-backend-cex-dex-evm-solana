@@ -42,7 +42,7 @@ export const UNISWAP_QUOTER_ADDRESS: `0x${string}` = '0xb27308f9F90D607463bb33eA
 
 // Uniswap V3 pool addresses
 export const UNISWAP_POOLS: Record<string, { address: `0x${string}`; token0: string; token1: string; fee: number }> = {
-  // 'WBTC/WETH': { address: '0xCBCdF9626bC03E24f779434178A73a0B4bad62eD', token0: 'WBTC', token1: 'WETH', fee: 3000 }, //TODO: UNCOMMENT
+  'WBTC/WETH': { address: '0xCBCdF9626bC03E24f779434178A73a0B4bad62eD', token0: 'WBTC', token1: 'WETH', fee: 3000 },
   'WETH/USDT_500': { address: '0x11b815efB8f581194ae79006d24E0d814B7697F6', token0: 'WETH', token1: 'USDT', fee: 500 },
   'WETH/USDT': { address: '0x4e68Ccd3E89f51C3074ca5072bbAC773960dFa36', token0: 'WETH', token1: 'USDT', fee: 3000 },
   'WBTC/USDT': { address: '0x9Db9e0e53058C89e5B94e29621a205198648425B', token0: 'WBTC', token1: 'USDT', fee: 3000 },

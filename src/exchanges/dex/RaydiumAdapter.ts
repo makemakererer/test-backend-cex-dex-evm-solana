@@ -248,16 +248,13 @@ export class RaydiumAdapter implements ExchangeAdapter {
 	async getRate(baseCurrency: string, quoteCurrency: string, amount: number): Promise<number | null> {
 		const base = baseCurrency.toUpperCase();
 		const quote = quoteCurrency.toUpperCase();
-
+		
 		if (!SOL_TOKENS[base] || !SOL_TOKENS[quote]) return null;
+		
+		const directRate = this.getPoolSwapRate(base, quote, amount);
 
-		// Direct pool
-		const direct = this.getPoolSwapRate(base, quote, amount);
-		if (direct !== null) return direct;
-
-		// Try all intermediaries (2-hop swap: base → mid → quote) and pick the best rate
-		let bestRate: number | null = null;
-
+		// Try all intermediaries (2-hop swap: base -> mid -> quote) and pick the best rate
+		let bestCrossRate: number | null = null;
 		for (const mid of DEX_CROSS_RATE_INTERMEDIARIES) {
 			if (mid === base || mid === quote) continue;
 
@@ -269,12 +266,14 @@ export class RaydiumAdapter implements ExchangeAdapter {
 			if (midQuoteRate === null) continue;
 
 			const rate = baseMidRate * midQuoteRate;
-			if (bestRate === null || rate > bestRate) {
-				bestRate = rate;
+			if (bestCrossRate === null || rate > bestCrossRate) {
+				bestCrossRate = rate;
 			}
 		}
 
-		return bestRate;
+		if (directRate === null) return bestCrossRate;
+		if (bestCrossRate === null) return directRate;
+		return Math.max(directRate, bestCrossRate);
 	}
 
 	private getPoolSwapRate(base: string, quote: string, amount: number): number | null {
@@ -344,3 +343,4 @@ export class RaydiumAdapter implements ExchangeAdapter {
 		return price * 10 ** (decimalsA - decimalsB);
 	}
 }
+

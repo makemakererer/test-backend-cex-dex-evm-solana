@@ -125,18 +125,17 @@ export class UniswapAdapter implements ExchangeAdapter {
     if (!baseToken || !quoteToken) return null;
 
     const directRate = await this.getPoolRate(baseToken, quoteToken, amount);
-    if (directRate !== null) return directRate;
 
-    // Try all intermediaries (2-hop: base → mid → quote) and pick the best rate
+    // Try all intermediaries (2-hop: base -> mid -> quote) and pick the best rate
     const crossRates = await Promise.all(
       DEX_CROSS_RATE_INTERMEDIARIES
         .filter(mid => mid !== baseToken && mid !== quoteToken)
         .map(async (mid) => {
-          // Step 1: swap base → mid
+          // Step 1: swap base -> mid
           const baseMidRate = await this.getPoolRate(baseToken, mid, amount);
           if (baseMidRate === null) return null;
 
-          // Step 2: swap actual mid output → quote
+          // Step 2: swap actual mid output -> quote
           const midOutput = amount * baseMidRate;
           const midQuoteRate = await this.getPoolRate(mid, quoteToken, midOutput);
           if (midQuoteRate === null) return null;
@@ -145,8 +144,12 @@ export class UniswapAdapter implements ExchangeAdapter {
         })
     );
 
-    const validRates = crossRates.filter((r): r is number => r !== null);
-    return validRates.length > 0 ? Math.max(...validRates) : null;
+    const validCrossRates = crossRates.filter((r): r is number => r !== null);
+    const bestCrossRate = validCrossRates.length > 0 ? Math.max(...validCrossRates) : null;
+
+    if (directRate === null) return bestCrossRate;
+    if (bestCrossRate === null) return directRate;
+    return Math.max(directRate, bestCrossRate);
   }
 
   private async getPoolRate(tokenA: string, tokenB: string, amount: number): Promise<number | null> {
@@ -181,3 +184,4 @@ export class UniswapAdapter implements ExchangeAdapter {
     return price * (10 ** (decimals0 - decimals1));
   }
 }
+

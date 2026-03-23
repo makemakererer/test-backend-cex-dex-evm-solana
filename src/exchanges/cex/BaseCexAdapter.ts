@@ -79,9 +79,15 @@ export abstract class BaseCexAdapter implements ExchangeAdapter {
     const symbol = `${base}/${quote}`;
 
     const directRate = await this.fetchEffectiveRate(symbol, amount);
-    if (directRate !== null) return directRate;
+    const crossRate = await this.getCrossRate(base, quote, amount);
 
-    // Step 1: sell base → USDT
+    if (directRate === null) return crossRate;
+    if (crossRate === null) return directRate;
+    return Math.max(directRate, crossRate);
+  }
+
+  private async getCrossRate(base: string, quote: string, amount: number): Promise<number | null> {
+    // Step 1: sell base -> USDT
     const baseRate = await this.fetchEffectiveRate(`${base}/${CEX_CROSS_RATE_QUOTE}`, amount);
     if (baseRate === null) return null;
 
@@ -122,3 +128,4 @@ export abstract class BaseCexAdapter implements ExchangeAdapter {
     }
   }
 }
+
