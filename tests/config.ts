@@ -8,8 +8,7 @@ export const TEST_PAIRS = [
   // { base: 'SOL', quote: 'USDT' },
 ];
 
-// export const CEX_ADAPTERS = createAdapters(['binance', 'kucoin']);
-export const CEX_ADAPTERS = createAdapters(['binance']);
+export const CEX_ADAPTERS = createAdapters(['binance', 'kucoin']);
 export const DEX_ADAPTERS = createAdapters(['uniswap', 'raydium']);
 export const ALL_ADAPTERS = createAdapters(['binance', 'kucoin', 'uniswap', 'raydium']);
 

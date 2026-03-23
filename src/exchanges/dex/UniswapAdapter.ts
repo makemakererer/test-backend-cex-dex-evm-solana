@@ -127,20 +127,26 @@ export class UniswapAdapter implements ExchangeAdapter {
     const directRate = await this.getPoolRate(baseToken, quoteToken, amount);
     if (directRate !== null) return directRate;
 
-    for (const mid of DEX_CROSS_RATE_INTERMEDIARIES) {
-      if (mid === baseToken || mid === quoteToken) continue;
+    // Try all intermediaries (2-hop: base → mid → quote) and pick the best rate
+    const crossRates = await Promise.all(
+      DEX_CROSS_RATE_INTERMEDIARIES
+        .filter(mid => mid !== baseToken && mid !== quoteToken)
+        .map(async (mid) => {
+          // Step 1: swap base → mid
+          const baseMidRate = await this.getPoolRate(baseToken, mid, amount);
+          if (baseMidRate === null) return null;
 
-      const [baseMid, quoteMid] = await Promise.all([
-        this.getPoolRate(baseToken, mid, amount),
-        this.getPoolRate(quoteToken, mid, 1),
-      ]);
+          // Step 2: swap actual mid output → quote
+          const midOutput = amount * baseMidRate;
+          const midQuoteRate = await this.getPoolRate(mid, quoteToken, midOutput);
+          if (midQuoteRate === null) return null;
 
-      if (baseMid !== null && quoteMid !== null && quoteMid !== 0) {
-        return baseMid / quoteMid;
-      }
-    }
+          return baseMidRate * midQuoteRate;
+        })
+    );
 
-    return null;
+    const validRates = crossRates.filter((r): r is number => r !== null);
+    return validRates.length > 0 ? Math.max(...validRates) : null;
   }
 
   private async getPoolRate(tokenA: string, tokenB: string, amount: number): Promise<number | null> {
