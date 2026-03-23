@@ -18,7 +18,7 @@ function mockAdapter(name: string, rate: number | null): ExchangeAdapter {
 async function main() {
   const { base, quote } = TEST_PAIRS[0];
 
-  console.log('\n--- PriceService: returns rates from all adapters ---');
+  console.log('\n--- PriceService.getRates: returns rates from all adapters ---');
   {
     const registry = new ExchangeRegistry();
     registry.register(mockAdapter('exchange-a', 10));
@@ -31,7 +31,7 @@ async function main() {
     assert(rates[1].exchangeName === 'exchange-b' && rates[1].rate === 8, 'exchange-b rate=8');
   }
 
-  console.log('\n--- PriceService: skips adapter returning null ---');
+  console.log('\n--- PriceService.getRates: skips adapter returning null ---');
   {
     const registry = new ExchangeRegistry();
     registry.register(mockAdapter('exchange-a', 10));
@@ -43,7 +43,7 @@ async function main() {
     assert(rates[0].exchangeName === 'exchange-a', 'only exchange-a returned');
   }
 
-  console.log('\n--- PriceService: skips adapter that throws ---');
+  console.log('\n--- PriceService.getRates: skips adapter that throws ---');
   {
     const registry = new ExchangeRegistry();
     registry.register(mockAdapter('exchange-a', 10));
@@ -58,20 +58,31 @@ async function main() {
     assert(rates[0].exchangeName === 'exchange-a', 'only exchange-a returned');
   }
 
-  console.log('\n--- PriceService: uses cache on second call ---');
+  console.log('\n--- PriceService.getCachedRates: returns rates from cache ---');
   {
-    let callCount = 0;
-    const countingAdapter: ExchangeAdapter = {
-      getName: () => 'counter',
-      getRate: async () => { callCount++; return 42; },
-    };
     const registry = new ExchangeRegistry();
-    registry.register(countingAdapter);
-    const service = new PriceService(registry, new PriceCache());
+    registry.register(mockAdapter('exchange-a', 10));
+    const cache = new PriceCache();
+    cache.set('exchange-a', base, quote, 42);
+    const service = new PriceService(registry, cache);
 
-    await service.getRates(base, quote);
-    await service.getRates(base, quote);
-    assert(callCount === 1, 'adapter called only once (second call from cache)');
+    const rates = service.getCachedRates(base, quote);
+    assert(rates.length === 1, 'got 1 rate from cache');
+    assert(rates[0].rate === 42, 'rate from cache = 42');
+  }
+
+  console.log('\n--- PriceService.getCachedRates: cross-rate from cache ---');
+  {
+    const registry = new ExchangeRegistry();
+    registry.register(mockAdapter('dex', 0));
+    const cache = new PriceCache();
+    cache.set('dex', 'BTC', 'SOL', 791);
+    cache.set('dex', 'SOL', 'USDT', 85);
+    const service = new PriceService(registry, cache);
+
+    const rates = service.getCachedRates('BTC', 'USDT');
+    assert(rates.length === 1, 'got 1 cross-rate');
+    assert(Math.abs(rates[0].rate - 791 * 85) < 0.01, `cross-rate = ${rates[0].rate} (expected ${791 * 85})`);
   }
 
   console.log('\nDone.');

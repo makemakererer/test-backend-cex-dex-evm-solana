@@ -22,7 +22,11 @@ function buildTestApp() {
   const registry = new ExchangeRegistry();
   registry.register(mockAdapter('binance', 10));
   registry.register(mockAdapter('kucoin', 8));
-  const service = new PriceService(registry, new PriceCache());
+  // Pre-populate cache (simulates WS updates for /getRates)
+  const cache = new PriceCache();
+  cache.set('binance', 'BTC', 'ETH', 10);
+  cache.set('kucoin', 'BTC', 'ETH', 8);
+  const service = new PriceService(registry, cache);
   ratesRoutes(fastify, service);
   return fastify;
 }
@@ -65,7 +69,7 @@ async function main() {
     const body = JSON.parse(res.body);
     assert(res.statusCode === 200, `status 200 (got ${res.statusCode})`);
     assert(body.averageRate === 9, `averageRate=9 (got ${body.averageRate})`);
-    assert(body.bestRate.exchangeName === 'kucoin', `bestRate is kucoin (got ${body.bestRate.exchangeName})`);
+    assert(body.bestRate.exchangeName === 'binance', `bestRate is binance (got ${body.bestRate.exchangeName})`);
     assert(body.rates.length === 2, 'got 2 rates');
   }
 
